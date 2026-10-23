@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>보철 수납 장부</title>
+<meta name="description" content="치과 보철 환자 및 수납 기록 장부 (오프라인, 이 기기에만 저장)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="보철장부">
+<meta name="application-name" content="보철장부">
+<meta name="format-detection" content="telephone=no">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#0f766e" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b3d39" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="appbar">
+  <h1 class="appbar-title">보철 수납 장부</h1>
+  <button type="button" class="appbar-btn" id="btn-menu" aria-label="백업 및 도움말">백업·도움말</button>
+</header>
+
+<main id="main">
+  <!-- 입력 -->
+  <section class="view" id="view-add" data-view="add">
+    <form id="form-add" class="card form" autocomplete="off" novalidate>
+      <h2 class="card-title">새 보철 환자 입력</h2>
+      <label class="field">
+        <span class="label">날짜</span>
+        <input type="date" id="add-date" name="date" required>
+      </label>
+      <label class="field">
+        <span class="label">환자 이름</span>
+        <input type="text" id="add-name" name="name" list="names-list" maxlength="40" placeholder="예: 홍길동" required autocapitalize="off" enterkeyhint="next">
+      </label>
+      <div id="add-name-hint" class="hint-box" hidden></div>
+      <label class="field">
+        <span class="label">보철 내용 / 메모 <small>(선택)</small></span>
+        <input type="text" id="add-memo" name="memo" maxlength="80" placeholder="예: PFM #36" enterkeyhint="next">
+      </label>
+      <label class="field">
+        <span class="label">전체 치료비</span>
+        <span class="money-wrap"><input type="text" class="money" id="add-total" name="total" inputmode="numeric" pattern="[0-9,]*" placeholder="0" required enterkeyhint="next"><span class="unit">원</span></span>
+      </label>
+      <div class="field">
+        <span class="label">첫 수납액 <small>(없으면 비워두기)</small></span>
+        <div class="row-gap">
+          <span class="money-wrap grow"><input type="text" class="money" id="add-pay" name="pay" inputmode="numeric" pattern="[0-9,]*" placeholder="0" enterkeyhint="done" aria-label="첫 수납액"><span class="unit">원</span></span>
+          <button type="button" class="btn btn-soft" id="btn-fullpay">전액</button>
+        </div>
+      </div>
+      <fieldset class="field seg-field">
+        <legend class="label">결제 방법</legend>
+        <div class="seg" id="add-method" role="radiogroup">
+          <label><input type="radio" name="method" value="카드"><span>카드</span></label>
+          <label><input type="radio" name="method" value="현금"><span>현금</span></label>
+          <label><input type="radio" name="method" value="이체"><span>이체</span></label>
+          <label><input type="radio" name="method" value=""><span>미지정</span></label>
+        </div>
+      </fieldset>
+      <p class="preview" id="add-preview"></p>
+      <button type="submit" class="btn btn-primary btn-block" id="btn-add-save">저장</button>
+    </form>
+    <div class="section-head">
+      <h3 id="add-list-title">오늘 입력한 기록</h3>
+    </div>
+    <div id="add-list" class="list"></div>
+    <div id="backup-reminder" class="hint-box" style="margin:16px 0 0" hidden></div>
+    <p class="note">🔒 모든 데이터는 <b>이 휴대폰에만</b> 저장됩니다. 정기적으로 <a href="#" data-goto="menu">백업</a>해 주세요.</p>
+  </section>
+
+  <!-- 일별 -->
+  <section class="view" id="view-day" data-view="day" hidden>
+    <div class="date-nav">
+      <button type="button" class="btn btn-icon" id="day-prev" aria-label="이전 날">‹</button>
+      <label class="date-pick">
+        <span id="day-label" class="date-label"></span>
+        <input type="date" id="day-date" aria-label="날짜 선택">
+      </label>
+      <button type="button" class="btn btn-icon" id="day-next" aria-label="다음 날">›</button>
+    </div>
+    <div class="center"><button type="button" class="btn btn-link" id="day-today">오늘로</button></div>
+    <div class="stats" id="day-stats"></div>
+    <div class="section-head"><h3>이날 진료 기록</h3><button type="button" class="btn btn-soft btn-sm" id="day-add">＋ 이 날짜로 입력</button></div>
+    <div id="day-list" class="list"></div>
+    <div id="day-other-wrap" hidden>
+      <div class="section-head"><h3>이날 수납 (이전 진료분)</h3></div>
+      <div id="day-other" class="list"></div>
+    </div>
+  </section>
+
+  <!-- 월별 -->
+  <section class="view" id="view-month" data-view="month" hidden>
+    <div class="date-nav">
+      <button type="button" class="btn btn-icon" id="month-prev" aria-label="이전 달">‹</button>
+      <label class="date-pick">
+        <span id="month-label" class="date-label"></span>
+        <input type="month" id="month-date" aria-label="월 선택">
+      </label>
+      <button type="button" class="btn btn-icon" id="month-next" aria-label="다음 달">›</button>
+    </div>
+    <div class="stats" id="month-stats"></div>
+    <div class="section-head"><h3>일별 내역</h3><small class="muted">행을 누르면 해당 날짜로 이동</small></div>
+    <div class="table-wrap"><table class="table" id="month-table"></table></div>
+    <div class="section-head"><h3>최근 12개월</h3></div>
+    <div class="table-wrap"><table class="table" id="year-table"></table></div>
+  </section>
+
+  <!-- 미수 -->
+  <section class="view" id="view-unpaid" data-view="unpaid" hidden>
+    <div class="stats" id="unpaid-stats"></div>
+    <div class="section-head"><h3>미수 환자 (오래된 순)</h3></div>
+    <div id="unpaid-list" class="list"></div>
+  </section>
+
+  <!-- 검색 -->
+  <section class="view" id="view-search" data-view="search" hidden>
+    <label class="field search-field">
+      <span class="label">환자 이름 검색</span>
+      <input type="search" id="search-q" placeholder="이름 일부 입력" autocapitalize="off" enterkeyhint="search">
+    </label>
+    <div class="stats" id="search-stats"></div>
+    <div id="search-list" class="list"></div>
+  </section>
+
+  <!-- 백업 / 도움말 -->
+  <section class="view" id="view-menu" data-view="menu" hidden>
+    <div class="card">
+      <h2 class="card-title">데이터 저장 안내</h2>
+      <p>모든 기록은 <b>이 휴대폰의 이 앱 안에만</b> 저장되며 외부로 전송되지 않습니다. 휴대폰 분실·교체나 사파리 데이터 삭제 시 기록이 사라질 수 있으니 <b>정기적으로 백업 파일을 저장</b>해 주세요.</p>
+      <p class="muted" id="backup-status"></p>
+    </div>
+    <div class="card">
+      <h2 class="card-title">내보내기 · 백업</h2>
+      <div class="btn-col">
+        <button type="button" class="btn btn-primary btn-block" id="btn-backup">JSON 백업 파일 저장</button>
+        <button type="button" class="btn btn-soft btn-block" id="btn-csv-records">CSV 내보내기 (환자별)</button>
+        <button type="button" class="btn btn-soft btn-block" id="btn-csv-payments">CSV 내보내기 (수납 내역별)</button>
+      </div>
+      <p class="muted small">CSV는 엑셀에서 한글이 깨지지 않도록 UTF-8(BOM) 형식으로 저장됩니다. 아이폰에서는 공유 화면이 뜨면 ‘파일에 저장’ 또는 메일/메시지로 보낼 수 있습니다.</p>
+    </div>
+    <div class="card">
+      <h2 class="card-title">백업 불러오기 (휴대폰 이동 시)</h2>
+      <div class="btn-col">
+        <button type="button" class="btn btn-soft btn-block" id="btn-restore-merge">백업 파일 합치기</button>
+        <button type="button" class="btn btn-danger-soft btn-block" id="btn-restore-replace">백업 파일로 전체 교체</button>
+      </div>
+      <p class="muted small">‘합치기’는 현재 기록을 유지하고 백업에만 있는 기록을 추가합니다(같은 기록은 백업 내용으로 갱신). ‘전체 교체’는 현재 기록을 모두 지우고 백업 내용으로 바꿉니다.</p>
+      <input type="file" id="file-restore" accept=".json,application/json" hidden>
+    </div>
+    <div class="card help">
+      <h2 class="card-title">아이폰 홈 화면에 추가하는 방법</h2>
+      <ol>
+        <li><b>Safari</b>로 이 페이지를 엽니다. (다른 브라우저 앱이 아닌 Safari)</li>
+        <li>화면 아래(또는 위)의 <b>공유</b> 버튼 <span class="ico-share" aria-hidden="true">⬆︎</span> 을 누릅니다.</li>
+        <li>목록을 내려 <b>‘홈 화면에 추가’</b>를 누르고, 오른쪽 위 <b>‘추가’</b>를 누릅니다.</li>
+        <li>이후에는 홈 화면의 <b>‘보철장부’</b> 아이콘으로 실행하세요. 인터넷이 없어도 작동합니다.</li>
+      </ol>
+      <p class="muted small">참고: 홈 화면 앱과 Safari 탭은 저장 공간이 서로 분리되어 있습니다. 항상 홈 화면 아이콘으로 사용하세요. Safari 탭에서 입력한 기록은 홈 화면 앱에 보이지 않습니다.</p>
+      <h2 class="card-title">사용 방법</h2>
+      <ul>
+        <li><b>입력</b>: 날짜·이름·보철 내용·치료비·첫 수납액을 입력하고 저장.</li>
+        <li><b>분할 납부</b>: 미수/일별/검색 목록에서 환자를 눌러 ‘수납 추가’. 수납 날짜는 진료일과 달라도 됩니다.</li>
+        <li><b>일별</b>의 수납 합계는 그날 실제로 받은 금액(이전 진료분 포함)입니다. 치료비·미수 합계는 그날 진료 기록 기준입니다.</li>
+        <li>기록 수정·삭제는 기록을 눌러 상세 화면에서 할 수 있습니다.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2 class="card-title">전체 삭제</h2>
+      <button type="button" class="btn btn-danger btn-block" id="btn-wipe">모든 기록 삭제</button>
+      <p class="muted small">삭제 전에 반드시 백업하세요.</p>
+    </div>
+    <p class="muted small center" id="app-version"></p>
+  </section>
+</main>
+
+<nav class="tabbar" aria-label="메뉴">
+  <button type="button" class="tab" data-tab="add"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>입력</span></button>
+  <button type="button" class="tab" data-tab="day"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>일별</span></button>
+  <button type="button" class="tab" data-tab="month"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>월별</span></button>
+  <button type="button" class="tab" data-tab="unpaid"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>미수</span><span class="badge" id="unpaid-badge" hidden></span></button>
+  <button type="button" class="tab" data-tab="search"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-5-5"/></svg><span>검색</span></button>
+</nav>
+
+<datalist id="names-list"></datalist>
+
+<dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
+  <div class="sheet-inner" id="sheet-body"></div>
+</dialog>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
